@@ -4,6 +4,7 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import Label, Entry, Button, Frame, ttk, StringVar, OptionMenu, messagebox
 
+
 MV = {
     'Elemento': ["Tecnécio", "Iodo123", "Iodo131", "Gálio", "Flúor"],
     'Tempo_Meia_Vida': [6, 13.2, 192, 1.13, 1.82]
@@ -14,28 +15,32 @@ agenda = pd.DataFrame(columns=['Paciente', 'Peso', 'Horário', 'Elemento', 'Dose
 
 def calcular_dose():
     peso_paciente = float(peso_entry.get())
-    horario_exame = datetime.strptime(horario_exame_entry.get(), '%H:%M')
+    horario_exame = datetime.strptime(horario_exame_entry.get(), '%H:%M:%S')
     escolha = elemento_var.get()
     elemento_selecionado = MV["Elemento"].iloc[escolha]
     meia_vida = MV["Tempo_Meia_Vida"].iloc[escolha]
-    horario_chegada_elemento = datetime.strptime(horario_chegada_elemento_entry.get(), '%H:%M')
+    horario_chegada_elemento = datetime.strptime(horario_chegada_elemento_entry.get(), '%H:%M:%S')
     qtd_inicial_elemento = float(qtd_inicial_elemento_entry.get())
-
     if len(agenda) == 0:
-        dose = qtd_inicial_elemento
-        resto = dose
-    else:
-        dose_anterior = agenda.iloc[-1]['Resto']
-        elemento_idx = MV.index[MV['Elemento'] == elemento_selecionado].tolist()[0]
-        meia_vida = MV.iloc[elemento_idx]['Tempo_Meia_Vida']
-        horario_anterior = datetime.strptime(agenda.iloc[-1]['Horário'], '%H:%M')
-        horario_atual = horario_exame
-        dose = dose_anterior * math.exp(((-math.log(2)) / meia_vida) * (horario_atual - horario_anterior).total_seconds() / 3600)
-        resto = dose - (peso_paciente * 0.1)
+            dose_anterior = qtd_inicial_elemento
+            horario_anterior = horario_chegada_elemento
+            horario_atual = horario_exame
+            dose = dose_anterior * math.exp(((-math.log(2)) / meia_vida) * (horario_atual - horario_anterior).total_seconds() / 3600)
+            resto = dose - (peso_paciente * 0.1)
+    
+    for idx, row in agenda.iterrows():
+            dose_anterior = agenda.iloc[-1]['Resto']
+            elemento_idx = MV.index[MV['Elemento'] == elemento_selecionado].tolist()[0]
+            meia_vida = MV.iloc[elemento_idx]['Tempo_Meia_Vida']
+            print(agenda.iloc[idx - 1]['Horário'])
+            horario_anterior = datetime.strptime(str(agenda.iloc[idx - 1]['Horário']), '%H:%M:%S')
+            horario_atual = horario_exame
+            dose = dose_anterior * math.exp(((-math.log(2)) / meia_vida) * (horario_atual - horario_anterior).total_seconds() / 3600)
+            resto = dose - (peso_paciente * 0.1)
 
 
     if len(agenda) == 0 or (len(agenda) > 0 and resto >= 0):
-        if messagebox.askyesno("Confirmação", f"Tem certeza que deseja adicionar o encaixe?\nDose disponível: {resto:.2f} mCi"):
+        if messagebox.askyesno("Confirmação", f"Tem certeza que deseja adicionar o encaixe?\nDose disponível após encaixe: {resto:.2f} mCi"):
             agenda.loc[len(agenda)] = [len(agenda) + 1, peso_paciente, horario_exame.time(), elemento_selecionado, dose, resto]
             atualizar_doses()
             atualizar_agenda()
@@ -52,16 +57,16 @@ def excluir_agendamento(paciente):
 def atualizar_doses():
     for idx, row in agenda.iterrows():
         if idx == 0:
-            agenda.at[idx, 'Resto'] = row['Dose Agendada']
+            agenda.at[idx, 'Resto'] = row['Dose Agendada']  - agenda.at[idx, 'Peso']*0.1
         else:
             elemento_idx = MV.index[MV['Elemento'] == row['Elemento']].tolist()[0]
             meia_vida = MV.iloc[elemento_idx]['Tempo_Meia_Vida']
             dose_anterior = agenda.iloc[idx - 1]['Resto']
-            horario_anterior = datetime.strptime(agenda.iloc[idx - 1]['Horário'], '%H:%M')
-            horario_atual = datetime.strptime(row['Horário'], '%H:%M')
+            horario_anterior = datetime.strptime(agenda.iloc[idx - 1]['Horário'], '%H:%M:%S')
+            horario_atual = datetime.strptime(row['Horário'], '%H:%M:%S')
             dose_atual = dose_anterior * math.exp(((-math.log(2)) / meia_vida) * (horario_atual - horario_anterior).total_seconds() / 3600)
             agenda.at[idx, 'Dose Agendada'] = dose_atual
-            agenda.at[idx, 'Resto'] = dose_atual
+            agenda.at[idx, 'Resto'] = dose_atual -  agenda.at[idx, 'Peso']*0.1
 
 def atualizar_agenda():
     agenda_frame.destroy()
@@ -136,3 +141,4 @@ atualizar_button.pack()
 agenda_frame_update()
 
 root.mainloop()
+
